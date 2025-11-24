@@ -1,0 +1,65 @@
+@startuml
+!include <C4/C4_Component.puml>
+
+' Configuración del diagrama
+title Diagrama de Componentes (Nivel 2) para el Módulo de Carga de Ficheros (EDA con Kafka)
+LAYOUT_WITH_LEGEND()
+
+' Definición de Actores y Sistemas Externos
+Person(admin_ie, "Administrador IE", "Usuario de la Universidad que carga los ficheros")
+System_Ext(kafka, "Apache Kafka", "Broker de Eventos")
+
+' Definición del Contenedor (Boundary)
+' Nos estamos enfocando dentro del "Módulo de Carga de Archivos" (MVP A3)
+Container_Boundary(c1, "Módulo de Carga de Archivos (MVP A3)") {
+
+    Component(api, "API de Carga de Ficheros", "REST API", "Punto de entrada HTTPS para recibir los ficheros masivos (Postulantes, Matriculados, Encuestas, etc.)")
+    Component(validator, "Servicio de Validación", "Microservicio", "Valida la estructura, reglas de negocio y campos de cada fichero. Separa registros válidos de erróneos.")
+    ComponentDb(db_status, "BD de Estado de Carga", "Database", "Registra el estado de la carga (ej: 'Recibido', 'Validando', 'Procesando', 'ConErrores')")
+    Component(producer, "Productor de Eventos Kafka", "Kafka Producer", "Publica los registros de ficheros validados (fila por fila o en lotes) como eventos en los topics de Kafka.")
+
+    ' Flujo interno del contenedor
+    Rel(api, validator, "Solicita validación del fichero")
+    Rel(api, db_status, "Registra estado 'Recibido'")
+    Rel(validator, producer, "Envía registros validados para publicación")
+    Rel(validator, db_status, "Actualiza estado 'Validado' o 'Con Errores'")
+}
+
+' Definición de los Consumidores (Microservicios externos al módulo de carga)
+' Estos componentes escuchan los eventos de Kafka
+Container_Boundary(c_consumers, "Servicios de Dominio (Consumidores)") {
+    ' Consumidores Académicos
+    Component(consumer_postulantes, "Servicio de Postulantes", "Kafka Consumer", "Procesa y almacena la información de postulantes")
+    Component(consumer_matriculados, "Servicio de Matrículas", "Kafka Consumer", "Procesa y almacena la información de matriculados")
+    Component(consumer_egresados, "Servicio de Egresados", "Kafka Consumer", "Procesa y almacena la información de egresados")
+    Component(consumer_docentes, "Servicio de Docentes", "Kafka Consumer", "Procesa y almacena la información de docentes")
+    Component(consumer_personal, "Servicio de Personal Admin.", "Kafka Consumer", "Procesa y almacena la información del personal")
+    Component(consumer_calendario, "Servicio Académico", "Kafka Consumer", "Procesa el calendario académico")
+    Component(consumer_escalas, "Servicio de Pensiones", "Kafka Consumer", "Procesa las escalas de pago")
+
+    ' === NUEVOS CONSUMIDORES ===
+    Component(consumer_investigacion, "Servicio de Investigación", "Kafka Consumer", "Procesa datos de grupos, proyectos, semilleros y estudiantes investigadores")
+    Component(consumer_encuestas, "Servicio de Encuestas", "Kafka Consumer", "Procesa datos de encuestados y encuestadores")
+}
+
+' Relaciones con Kafka
+Rel(admin_ie, api, "Carga ficheros masivos (CSV, TXT, etc.)")
+Rel(producer, kafka, "Publica eventos en Topics", "Kafka")
+
+' Kafka envía eventos a los consumidores
+Rel(kafka, consumer_postulantes, "Consume 'postulantes_topic'", "Kafka")
+Rel(kafka, consumer_matriculados, "Consume 'matriculados_topic'", "Kafka")
+Rel(kafka, consumer_egresados, "Consume 'egresados_topic'", "Kafka")
+Rel(kafka, consumer_docentes, "Consume 'docentes_topic'", "Kafka")
+Rel(kafka, consumer_personal, "Consume 'personal_admin_topic'", "Kafka")
+Rel(kafka, consumer_calendario, "Consume 'calendario_topic'", "Kafka")
+Rel(kafka, consumer_escalas, "Consume 'escalas_pago_topic'", "Kafka")
+
+' === NUEVAS RELACIONES ===
+' El Servicio de Investigación consume sus propios topics y también el de matriculados para buscar estudiantes
+Rel(kafka, consumer_investigacion, "Consume 'investigacion_topic'", "Kafka")
+
+' El Servicio de Encuestas consume sus topics
+Rel(kafka, consumer_encuestas, "Consume 'encuestas_topic'", "Kafka")
+
+@enduml

@@ -1,0 +1,105 @@
+@startuml
+' Título del diagrama - Nivel 4 (Código) para "Crear Postulante"
+title "Modelo C4 - Nivel 4: Código (Ejemplo: Caso de Uso 'Crear Postulante')"
+
+' --- Estilo ---
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam shadowing false
+
+' Definición de la capa de API (Adaptador de Entrada)
+package "Minedu.Siries.GestionAcademica.Api" as Api {
+    package "Controllers" {
+        class PostulantesController {
+            + Post(CreatePostulanteDto dto)
+        }
+    }
+}
+
+' Definición de la capa de Aplicación (Lógica y Puertos)
+package "Minedu.Siries.GestionAcademica.Application" as App {
+    
+    package "UseCases/CreatePostulante" {
+        interface ICreatePostulanteUseCase {
+            + ExecuteAsync(CreatePostulanteDto dto) : Task<PostulanteDto>
+        }
+        class CreatePostulanteUseCase {
+            - readonly IPostulanteRepository _postulanteRepository
+            ' - readonly IMapper _mapper (Asumido)
+            + ExecuteAsync(CreatePostulanteDto dto) : Task<PostulanteDto>
+        }
+    }
+
+    package "Contracts/Dtos" {
+        class CreatePostulanteDto {
+            + string Nombre
+            + Guid ProgramaId
+        }
+        class PostulanteDto {
+            + Guid Id
+            + string Nombre
+        }
+    }
+
+    package "Contracts/Persistence" {
+        interface IPostulanteRepository {
+            + AddAsync(Postulante postulante) : Task
+        }
+    }
+}
+
+' Definición de la capa de Dominio (Entidades Puras)
+package "Minedu.Siries.GestionAcademica.Domain" as Domain {
+    package "Entities" {
+        class Postulante {
+            + Guid Id
+            + string Nombre
+            + Guid ProgramaId
+            ' + ... Lógica de negocio
+        }
+    }
+}
+
+' Definición de la capa de Infraestructura (Adaptadores de Salida)
+package "Minedu.Siries.GestionAcademica.Infrastructure" as Infra {
+    package "Persistence/Repositories" {
+        class PostulanteRepository {
+            - readonly AppDbContext _context
+            + AddAsync(Postulante postulante) : Task
+        }
+    }
+    package "Persistence/Models" {
+        ' Entidad de EF Core
+        class PostulanteDataModel
+    }
+    
+    class AppDbContext {
+        + DbSet<PostulanteDataModel> Postulantes
+    }
+}
+
+' --- Relaciones ---
+
+' 1. Flujo de Entrada (API -> Application)
+Api.PostulantesController ..> App.ICreatePostulanteUseCase : "usa (depende de)"
+Api.PostulantesController --> App.CreatePostulanteDto : "recibe"
+
+' 2. Implementación del Caso de Uso (Application)
+App.ICreatePostulanteUseCase <|.. App.CreatePostulanteUseCase
+App.CreatePostulanteUseCase ..> App.IPostulanteRepository : "usa (depende de)"
+App.CreatePostulanteUseCase ..> App.CreatePostulanteDto : "recibe"
+App.CreatePostulanteUseCase ..> App.PostulanteDto : "retorna"
+App.CreatePostulanteUseCase ..> Domain.Postulante : "crea (vía mapper)"
+
+' 3. Implementación de Persistencia (Infrastructure)
+App.IPostulanteRepository <|.. Infra.PostulanteRepository
+Infra.PostulanteRepository ..> Infra.AppDbContext : "usa"
+Infra.PostulanteRepository ..> Domain.Postulante : "recibe"
+Infra.PostulanteRepository ..> Infra.PostulanteDataModel : "mapea a"
+
+' 4. Relación con la Base de Datos (Infrastructure)
+Infra.AppDbContext o-- "1..*" Infra.PostulanteDataModel : "gestiona (DbSet)"
+
+@enduml

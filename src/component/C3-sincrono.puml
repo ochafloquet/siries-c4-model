@@ -1,0 +1,200 @@
+@startuml C3_SIRIES_SYNC
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+' Configuración de estilo
+skinparam wrapWidth 200
+skinparam maxMessageSize 150
+' Aumentamos separación para visualizar mejor las capas
+skinparam nodesep 60
+skinparam ranksep 60
+LAYOUT_WITH_LEGEND()
+
+title Diagrama de Componentes (C3) - Vista Síncrona (Arquitectura Hexagonal: Infra-App-Dominio)
+
+' --- ACTORES ---
+Person(user, "Usuario SIRIES", "Administrativo, Docente o Estudiante.")
+
+' --- LÍMITE DEL SISTEMA ---
+System_Boundary(siries_boundary, "Sistema de Información SIRIES") {
+
+    ' =========================================================================
+    ' 1. FRONTEND: SINGLE PAGE APPLICATION (Angular)
+    ' =========================================================================
+    Container_Boundary(spa_boundary, "Aplicación Web Principal (SPA - Angular)") {
+
+        Component(shell, "Shell & Router", "Angular Core", "Gestión de enrutamiento y layout principal.")
+        Component(auth_module, "Módulo Seguridad", "Angular Module", "Gestión de Login (OIDC) y Usuarios.")
+
+        ' --- Módulos de Negocio ---
+        Component(mod_academica, "Módulo Información Académica", "Angular Module", "Vistas de Docentes, Investigación y Cursos.")
+        Component(mod_preu, "Módulo Centro Preuniversitario", "Angular Module", "Vistas de admisión y gestión Pre-U.")
+        Component(mod_bienestar, "Módulo Bienestar Universitario", "Angular Module", "Vistas de servicios, deporte y psicopedagogía.")
+        Component(mod_encuestas, "Módulo Gestión Encuestas", "Angular Module", "Vistas de diseño y configuración de encuestas.")
+        Component(mod_admin, "Módulo Admin/Financiera", "Angular Module", "Vistas de nóminas, costos y recursos.")
+        Component(mod_infra, "Módulo Infraestructura", "Angular Module", "Vistas de locales y servicios.")
+
+        ' --- Servicios de Comunicación ---
+        Component(http_services, "Core HTTP Services", "Angular Services", "Cliente HTTP centralizado.")
+    }
+
+    ' =========================================================================
+    ' 2. API GATEWAY
+    ' =========================================================================
+    Container(gateway, "API Gateway", "", "Enrutamiento, seguridad y orquestación síncrona.")
+
+    ' =========================================================================
+    ' 3. BACKEND: MICROSERVICIOS (Arquitectura Hexagonal Estricta)
+    '    Se detalla la estructura Infraestructura -> Aplicación -> Dominio
+    ' =========================================================================
+
+    ' --- MS GESTIÓN ACADÉMICA ---
+    Container_Boundary(ms_academica, "MS Gestión Académica") {
+
+        Boundary(inf_aca, "Capa Infraestructura") {
+            Component(c_acad, "Académico Controller", ".NET Web API", "Adapter In: Recibe HTTP.")
+            Component(r_acad, "Académico Repository Impl", "EF Core", "Adapter Out: Acceso SQL.")
+        }
+        Boundary(app_aca, "Capa Aplicación") {
+            Component(uc_acad, "Gestionar Docente UseCase", "App Service", "Orquesta flujo y transacciones.")
+        }
+        Boundary(dom_aca, "Capa Dominio") {
+            Component(d_acad, "Modelo Docente", "Domain Entity", "Reglas de negocio puras.")
+        }
+        ' Flujo Hexagonal
+        Rel(c_acad, uc_acad, "Usa")
+        Rel(uc_acad, d_acad, "Invoca reglas")
+        Rel(uc_acad, r_acad, "Persiste")
+    }
+
+    ' --- MS PROGRAMACIÓN Y MATRÍCULA ---
+    Container_Boundary(ms_matricula, "MS Programación y Matrícula") {
+
+        Boundary(inf_mat, "Capa Infraestructura") {
+            Component(c_mat, "Matrícula Controller", ".NET Web API", "Adapter In")
+            Component(r_mat, "Matrícula Repository Impl", "EF Core", "Adapter Out")
+        }
+        Boundary(app_mat, "Capa Aplicación") {
+            Component(uc_mat, "Procesar Matrícula UseCase", "App Service", "Orquesta inscripción y vacantes.")
+        }
+        Boundary(dom_mat, "Capa Dominio") {
+            Component(d_mat, "Modelo Matrícula", "Domain Entity", "Reglas de cruce de horarios.")
+        }
+        Rel(c_mat, uc_mat, "Usa")
+        Rel(uc_mat, d_mat, "Invoca reglas")
+        Rel(uc_mat, r_mat, "Persiste")
+    }
+
+    ' --- MS BIENESTAR ---
+    Container_Boundary(ms_bienestar, "MS Bienestar Univ.") {
+        Boundary(inf_bien, "Capa Infraestructura") {
+            Component(c_bien, "Bienestar Controller", ".NET Web API", "Adapter In")
+            Component(r_bien, "Bienestar Repository Impl", "EF Core", "Adapter Out")
+        }
+        Boundary(app_bien, "Capa Aplicación") {
+            Component(uc_bien, "Atención Servicio UseCase", "App Service", "Orquesta citas y servicios.")
+        }
+        Boundary(dom_bien, "Capa Dominio") {
+            Component(d_bien, "Modelo Servicio", "Domain Entity", "Reglas de atención.")
+        }
+        Rel(c_bien, uc_bien, "Usa")
+        Rel(uc_bien, d_bien, "Invoca reglas")
+        Rel(uc_bien, r_bien, "Persiste")
+    }
+
+    ' --- MS EVALUACIONES ---
+    Container_Boundary(ms_eval, "MS Evaluaciones") {
+        Boundary(inf_eval, "Capa Infraestructura") {
+            Component(c_eval, "Encuestas Controller", ".NET Web API", "Adapter In")
+            Component(r_eval, "Encuestas Repository Impl", "EF Core", "Adapter Out")
+        }
+        Boundary(app_eval, "Capa Aplicación") {
+            Component(uc_eval, "Diseñar Encuesta UseCase", "App Service", "Orquesta creación de formularios.")
+        }
+        Boundary(dom_eval, "Capa Dominio") {
+            Component(d_eval, "Modelo Encuesta", "Domain Entity", "Reglas de estructura.")
+        }
+        Rel(c_eval, uc_eval, "Usa")
+        Rel(uc_eval, d_eval, "Invoca reglas")
+        Rel(uc_eval, r_eval, "Persiste")
+    }
+
+    ' --- MS ADMIN/FINANCIERA ---
+    Container_Boundary(ms_admin, "MS Admin/Financiera") {
+        Boundary(inf_adm, "Capa Infraestructura") {
+            Component(c_adm, "Finanzas Controller", ".NET Web API", "Adapter In")
+            Component(r_adm, "Finanzas Repository Impl", "EF Core", "Adapter Out")
+        }
+        Boundary(app_adm, "Capa Aplicación") {
+            Component(uc_adm, "Calcular Nómina UseCase", "App Service", "Orquesta pagos.")
+        }
+        Boundary(dom_adm, "Capa Dominio") {
+            Component(d_adm, "Modelo Financiero", "Domain Entity", "Reglas tributarias.")
+        }
+        Rel(c_adm, uc_adm, "Usa")
+        Rel(uc_adm, d_adm, "Invoca reglas")
+        Rel(uc_adm, r_adm, "Persiste")
+    }
+
+    ' --- MS INFRAESTRUCTURA ---
+    Container_Boundary(ms_infra, "MS Infraestructura") {
+        Boundary(inf_inf, "Capa Infraestructura") {
+            Component(c_inf, "Infra Controller", ".NET Web API", "Adapter In")
+            Component(r_inf, "Infra Repository Impl", "EF Core", "Adapter Out")
+        }
+        Boundary(app_inf, "Capa Aplicación") {
+            Component(uc_inf, "Gestionar Sede UseCase", "App Service", "Orquesta espacios.")
+        }
+        Boundary(dom_inf, "Capa Dominio") {
+            Component(d_inf, "Modelo Sede", "Domain Entity", "Reglas de aforo.")
+        }
+        Rel(c_inf, uc_inf, "Usa")
+        Rel(uc_inf, d_inf, "Invoca reglas")
+        Rel(uc_inf, r_inf, "Persiste")
+    }
+
+    ' --- DATOS ---
+    ComponentDb(db_main, "Base de Datos Principal", "SQL Server", "Persistencia Relacional")
+}
+
+' =========================================================================
+' RELACIONES GENERALES
+' =========================================================================
+
+' 1. Usuario -> SPA
+Rel(user, shell, "Navega e interactúa", "HTTPS")
+
+' 2. SPA Internals
+Rel(shell, auth_module, "Carga")
+Rel(shell, mod_academica, "Lazy Load")
+Rel(shell, mod_preu, "Lazy Load")
+Rel(shell, mod_bienestar, "Lazy Load")
+Rel(shell, mod_encuestas, "Lazy Load")
+Rel(shell, mod_admin, "Lazy Load")
+Rel(shell, mod_infra, "Lazy Load")
+
+' 3. SPA -> Gateway
+Rel(mod_academica, http_services, "Usa")
+Rel(mod_preu, http_services, "Usa")
+Rel(mod_bienestar, http_services, "Usa")
+Rel(mod_encuestas, http_services, "Usa")
+Rel(mod_admin, http_services, "Usa")
+Rel(mod_infra, http_services, "Usa")
+Rel(http_services, gateway, "API Requests (JSON)", "HTTPS")
+
+' 4. Gateway -> Microservicios (Controllers en Capa Infraestructura)
+Rel(gateway, c_acad, "Route /api/academica")
+Rel(gateway, c_mat, "Route /api/matricula")
+Rel(gateway, c_bien, "Route /api/bienestar")
+Rel(gateway, c_eval, "Route /api/evaluaciones")
+Rel(gateway, c_adm, "Route /api/finanzas")
+Rel(gateway, c_inf, "Route /api/infra")
+
+' 5. Persistencia (Repositorios en Capa Infraestructura -> BD)
+Rel(r_acad, db_main, "SQL")
+Rel(r_mat, db_main, "SQL")
+Rel(r_bien, db_main, "SQL")
+Rel(r_eval, db_main, "SQL")
+Rel(r_adm, db_main, "SQL")
+Rel(r_inf, db_main, "SQL")
+
+@enduml

@@ -1,0 +1,137 @@
+@startuml C3_SIRIES_ASYNC
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+' Configuración de estilo profesional
+skinparam wrapWidth 300
+skinparam maxMessageSize 150
+' Aumentamos la separación para mejorar la legibilidad de los 9 workers
+skinparam nodesep 60
+skinparam ranksep 60
+LAYOUT_WITH_LEGEND()
+
+title Diagrama de Componentes (C3) - Vista Asíncrona Completa (9 Workers .NET)
+
+' --- ACTORES ---
+Person(admin_ie, "Administrador IE", "Usuario que sube la carga masiva (CSV/Excel).")
+
+' --- INFRAESTRUCTURA DE EVENTOS ---
+ContainerQueue(kafka, "Apache Kafka", "Event Bus", "Topics: postulantes, matriculas, docentes, investigacion, egresados, personal, pensiones, encuestas, calendario.")
+
+' --- LÍMITE DEL SISTEMA ---
+System_Boundary(siries_boundary, "Sistema de Información SIRIES") {
+
+    ' -------------------------------------------------------------------------
+    ' 1. PRODUCTOR: MÓDULO DE CARGA DE ARCHIVOS
+    ' -------------------------------------------------------------------------
+    Container_Boundary(producer_boundary, "Módulo de Carga (Productor)") {
+        Component(upload_controller, "UploadController", ".NET REST Controller", "Recibe la petición POST. Retorna 202.")
+        Component(file_validator, "FileValidationService", ".NET Domain Service", "Valida formato y estructura.")
+        Component(kafka_producer, "KafkaProducerService", ".NET Client", "Publica eventos en Kafka.")
+        ComponentDb(db_status, "BD Estado Carga", "SQL Server", "Tabla: ProcessStatus")
+
+        Rel(upload_controller, file_validator, "Usa")
+        Rel(file_validator, kafka_producer, "Usa")
+        Rel(file_validator, db_status, "Registra inicio")
+    }
+
+    Rel(admin_ie, upload_controller, "Sube Archivos", "HTTPS/POST")
+    Rel(kafka_producer, kafka, "Publica mensajes", "TCP")
+
+    ' -------------------------------------------------------------------------
+    ' 2. CONSUMIDORES: MICROSERVICIOS DE DOMINIO (9 WORKERS)
+    ' -------------------------------------------------------------------------
+
+    ' === A. MS PROGRAMACIÓN Y MATRÍCULA (3 Workers) ===
+    Container_Boundary(ms_matricula_boundary, "MS Programación y Matrícula") {
+        ComponentDb(db_matricula, "BD Matrícula", "SQL Server", "Schemas: Admisión, Matrícula, Académico")
+
+        ' Worker 1: Postulantes
+        Component(w_postulante, "PostulantesWorker", ".NET BackgroundService", "Carga masiva de ingresantes.")
+        Component(d_postulante, "PostulanteDomain", "Domain Service", "Validación de admisión.")
+        Rel(w_postulante, d_postulante, "Invoca")
+        Rel(d_postulante, db_matricula, "Persiste")
+
+        ' Worker 2: Matrículas
+        Component(w_matricula, "MatriculasWorker", ".NET BackgroundService", "Carga masiva de inscripciones.")
+        Component(d_matricula, "MatriculaDomain", "Domain Service", "Validación de vacantes y cruces.")
+        Rel(w_matricula, d_matricula, "Invoca")
+        Rel(d_matricula, db_matricula, "Persiste")
+
+        ' Worker 3: Calendario
+        Component(w_calendario, "CalendarioWorker", ".NET BackgroundService", "Carga de programación académica.")
+        Component(d_calendario, "CalendarioDomain", "Domain Service", "Reglas de ciclos y fechas.")
+        Rel(w_calendario, d_calendario, "Invoca")
+        Rel(d_calendario, db_matricula, "Persiste")
+    }
+
+    ' === B. MS GESTIÓN ACADÉMICA (3 Workers) ===
+    Container_Boundary(ms_academica_boundary, "MS Gestión Académica") {
+        ComponentDb(db_academica, "BD Académica", "SQL Server", "Schemas: RRHH Docente, Investigación, Alumni")
+
+        ' Worker 4: Docentes
+        Component(w_docente, "DocentesWorker", ".NET BackgroundService", "Carga de padrón docente.")
+        Component(d_docente, "DocenteDomain", "Domain Service", "Validación de grados y títulos.")
+        Rel(w_docente, d_docente, "Invoca")
+        Rel(d_docente, db_academica, "Persiste")
+
+        ' Worker 5: Investigación
+        Component(w_investigacion, "InvestigacionWorker", ".NET BackgroundService", "Carga de proyectos y grupos.")
+        Component(d_investigacion, "InvestigacionDomain", "Domain Service", "Reglas de Renacyt.")
+        Rel(w_investigacion, d_investigacion, "Invoca")
+        Rel(d_investigacion, db_academica, "Persiste")
+
+        ' Worker 6: Egresados
+        Component(w_egresado, "EgresadosWorker", ".NET BackgroundService", "Carga histórica de egresados.")
+        Component(d_egresado, "EgresadoDomain", "Domain Service", "Validación de constancias.")
+        Rel(w_egresado, d_egresado, "Invoca")
+        Rel(d_egresado, db_academica, "Persiste")
+    }
+
+    ' === C. MS ADMIN/FINANCIERA (2 Workers) ===
+    Container_Boundary(ms_admin_boundary, "MS Admin/Financiera") {
+        ComponentDb(db_finanzas, "BD Finanzas", "SQL Server", "Schemas: RRHH Admin, Tesorería")
+
+        ' Worker 7: Personal Administrativo
+        Component(w_personal, "PersonalAdminWorker", ".NET BackgroundService", "Carga de staff no docente.")
+        Component(d_personal, "PersonalDomain", "Domain Service", "Reglas de RRHH.")
+        Rel(w_personal, d_personal, "Invoca")
+        Rel(d_personal, db_finanzas, "Persiste")
+
+        ' Worker 8: Escalas/Pensiones
+        Component(w_escalas, "EscalasWorker", ".NET BackgroundService", "Carga de asignación de costos.")
+        Component(d_escalas, "PensionesDomain", "Domain Service", "Cálculo de obligaciones.")
+        Rel(w_escalas, d_escalas, "Invoca")
+        Rel(d_escalas, db_finanzas, "Persiste")
+    }
+
+    ' === D. MS EVALUACIONES (1 Worker) ===
+    Container_Boundary(ms_evaluaciones_boundary, "MS Evaluaciones") {
+        ComponentDb(db_encuestas, "BD Encuestas", "MongoDB / SQL", "Schemas: Respuestas")
+
+        ' Worker 9: Encuestas
+        Component(w_encuestas, "EncuestasWorker", ".NET BackgroundService", "Procesamiento de respuestas masivas.")
+        Component(d_encuestas, "EncuestaDomain", "Domain Service", "Consolidación de resultados.")
+        Rel(w_encuestas, d_encuestas, "Invoca")
+        Rel(d_encuestas, db_encuestas, "Persiste")
+    }
+}
+
+' --- RELACIONES DE CONSUMO (KAFKA) ---
+' Group A
+Rel(kafka, w_postulante, "Subscribe: postulantes.carga")
+Rel(kafka, w_matricula, "Subscribe: matriculas.carga")
+Rel(kafka, w_calendario, "Subscribe: calendario.carga")
+
+' Group B
+Rel(kafka, w_docente, "Subscribe: docentes.carga")
+Rel(kafka, w_investigacion, "Subscribe: investigacion.carga")
+Rel(kafka, w_egresado, "Subscribe: egresados.carga")
+
+' Group C
+Rel(kafka, w_personal, "Subscribe: personal.carga")
+Rel(kafka, w_escalas, "Subscribe: pensiones.carga")
+
+' Group D
+Rel(kafka, w_encuestas, "Subscribe: encuestas.carga")
+
+@enduml

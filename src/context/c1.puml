@@ -1,0 +1,55 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+' Configuración de diseño
+LAYOUT_WITH_LEGEND()
+title Diagrama de Contexto (C1) - Sistema de Información SIRIES
+
+' --- ACTORES (Usuarios) ---
+Person(admin, "Administrador (Personal MINEDU)", "Personal del MINEDU responsable de la administración de SIRIES.")
+Person(responsable, "Responsable (Usuario IES)", "Usuario de Institución de Educación Superior que gestiona procesos en SIRIES.")
+Person(revisor, "Revisor (Usuario IES)", "Usuario de IES que realiza seguimiento y monitoreo en módulos de SIRIES.")
+Person(encuestado, "Encuestado (Estudiantes/Docentes)", "Estudiantes o docentes que visualizan información y formularios en SIRIES.")
+
+' --- SISTEMA PRINCIPAL ---
+System(siries, "SIRIES", "Sistema de Recolección de Información para las Instituciones de Educación Superior")
+
+' --- SISTEMAS EXTERNOS ---
+System_Ext(db_minedu, "Base de Datos Persona MINEDU", "Sistema externo: Base de Datos de Personas del MINEDU.")
+System_Ext(siagie, "SIAGIE", "Sistema externo: Sistema de Información de Apoyo a la Gestión de la Institución Educativa.")
+System_Ext(siestp, "SIESTP", "Sistema externo: Plataforma de Información de Educación Superior Tecnológica.")
+System_Ext(airhsp, "AIRHSP del MEF", "Sistema externo: Aplicativo Informático para el Registro Centralizado de Planillas y de Datos de los Recursos Humanos del Sector Público (MEF).")
+System_Ext(conadis, "CONADIS", "Sistema externo: Consejo Nacional para la Integración de la Persona con Discapacidad.")
+System_Ext(sunedu, "SUNEDU", "Sistema externo: Superintendencia Nacional de Educación Superior Universitaria.")
+System_Ext(reniec, "RENIEC", "Registro Nacional de Identificación y Estado Civil.")
+System_Ext(migraciones, "Migraciones", "Sistema externo: Superintendencia Nacional de Migraciones.")
+System_Ext(passport, "Passport", "Sistema externo: sistema de consulta/validación de pasaportes.")
+System_Ext(renacyt, "RENACYT y Perú CRIS (CONCYTEC)", "Sistema externo: Registro Nacional Científico, Tecnológico y de Innovación Tecnológica y Perú Current Research Information System (CONCYTEC).")
+System_Ext(sunat, "SUNAT", "Sistema externo: Superintendencia Nacional de Aduanas y de Administración Tributaria.")
+System_Ext(siaf, "SIAF", "Sistema integrado de administración financiera.")
+System_Ext(pronabec, "PRONABEC", "Sistema externo: Programa Nacional de Becas y Crédito Educativo.")
+
+' --- RELACIONES ---
+
+' Relaciones de Usuarios con SIRIES
+Rel(admin, siries, "Administra y gestiona")
+Rel(responsable, siries, "Utiliza módulos para la gestión de procesos")
+Rel(revisor, siries, "Realiza seguimiento y monitoreo en módulos (e.g., Censo de Formulación)")
+Rel(encuestado, siries, "Visualiza información y formularios")
+
+' Relaciones de SIRIES con Sistemas Externos
+Rel(siries, db_minedu, "Consulta/Valida datos de personas")
+Rel(siries, siagie, "Consulta/Intercambia información de gestión educativa")
+Rel(siries, siestp, "Consulta/Intercambia información de IESTP")
+Rel(siries, airhsp, "Consulta/Valida datos de RRHH del sector público")
+Rel(siries, conadis, "Consulta/Valida información de personas con discapacidad")
+Rel(siries, sunedu, "Consulta/Intercambia información de educación superior universitaria")
+Rel(siries, reniec, "Consulta/Valida datos de identificación")
+Rel(siries, migraciones, "Consulta/Valida información migratoria")
+Rel(siries, passport, "Ver/Consulta/Valida información de pasaportes")
+Rel(siries, renacyt, "Consulta/Intercambia información científica y tecnológica")
+Rel(siries, sunat, "Consulta/Valida información tributaria")
+Rel(siries, siaf, "Consulta/Intercambia información de administración financiera")
+Rel(siries, pronabec, "Consulta/Intercambia información de becas y créditos")
+
+@enduml

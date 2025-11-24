@@ -1,0 +1,68 @@
+@startuml C2_SIRIES_SYNC
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+' Configuración de estilo
+skinparam wrapWidth 300
+skinparam maxMessageSize 150
+LAYOUT_WITH_LEGEND()
+
+title Diagrama de Contenedores (C2) - Vista Síncrona (Arquitectura Microservicios .NET)
+
+' --- ACTORES ---
+Person(admin, "Administrador (MINEDU)", "Gestión central.")
+Person(responsable, "Responsable (IES)", "Gestión institucional.")
+Person(revisor, "Revisor (IES)", "Validación de datos.")
+Person_Ext(encuestado, "Encuestado", "Estudiante/Docente.")
+
+' --- SISTEMAS EXTERNOS ---
+System_Ext(ext_systems, "Sistemas Externos", "SIAGIE, RENIEC, SUNEDU, etc.")
+
+System_Boundary(siries_boundary, "Sistema de Información SIRIES") {
+
+    ' --- FRONTEND (SPA) ---
+    Container(spa_main, "Aplicación Web Principal (SPA)", "Angular", "Gestión administrativa, académica y financiera.")
+    Container(portal_encuestas, "Portal Público de Encuestas", "Angular", "Interfaz pública para responder encuestas.")
+
+    ' --- API GATEWAY ---
+    Container(gateway, "API Gateway", "", "Enrutamiento, seguridad y orquestación síncrona.")
+
+    ' --- MICROSERVICIOS (Backend .NET) ---
+    ' Internamente usan Arquitectura Hexagonal
+    Container(ms_academica, "MS Gestión Académica", ".NET / C#", "Lógica de Docentes, Investigación, Estudiantes.")
+    Container(ms_admin, "MS Admin/Financiera", ".NET / C#", "Lógica de Nóminas, Costos, Recursos.")
+    Container(ms_matricula, "MS Programación/Matrícula", ".NET / C#", "Lógica de Ciclos, Matrículas, Vacantes.")
+    Container(ms_infra, "MS Infraestructura", ".NET / C#", "Lógica de Locales, Aforos.")
+    Container(ms_evaluaciones, "MS Evaluaciones", ".NET / C#", "Diseño y procesamiento de encuestas.")
+    Container(ms_bienestar, "MS Bienestar", ".NET / C#", "Psicopedagogía, Deporte.")
+
+    ' --- BASE DE DATOS ---
+    ContainerDb(db_main, "Base de Datos", "SQL Server", "Persistencia de datos del sistema.")
+}
+
+' --- RELACIONES SÍNCRONAS ---
+Rel(admin, spa_main, "Usa")
+Rel(responsable, spa_main, "Usa")
+Rel(revisor, spa_main, "Usa")
+Rel(encuestado, portal_encuestas, "Usa")
+
+Rel(spa_main, gateway, "HTTPS/JSON")
+Rel(portal_encuestas, gateway, "HTTPS/JSON")
+
+Rel(gateway, ms_academica, "REST")
+Rel(gateway, ms_admin, "REST")
+Rel(gateway, ms_matricula, "REST")
+Rel(gateway, ms_infra, "REST")
+Rel(gateway, ms_evaluaciones, "REST")
+Rel(gateway, ms_bienestar, "REST")
+
+Rel(ms_academica, db_main, "EF Core / SQL")
+Rel(ms_admin, db_main, "EF Core / SQL")
+Rel(ms_matricula, db_main, "EF Core / SQL")
+Rel(ms_infra, db_main, "EF Core / SQL")
+Rel(ms_evaluaciones, db_main, "EF Core / SQL")
+Rel(ms_bienestar, db_main, "EF Core / SQL")
+
+Rel(ms_academica, ext_systems, "Consulta API")
+Rel(ms_admin, ext_systems, "Consulta API")
+
+@enduml
